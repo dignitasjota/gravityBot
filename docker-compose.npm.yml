@@ -1,0 +1,53 @@
+# Production overlay for VPS + Portainer + Nginx Proxy Manager (NPM).
+#
+# This file is NOT auto-loaded. On the VPS, run:
+#   docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d
+#
+# Why a separate file (not docker-compose.override.yml): the override name
+# is auto-loaded by docker compose in any cwd containing both files, which
+# would break local development on machines that lack /opt/grvt-grid/...
+# and the npm-network. Invoking with -f keeps prod opt-in.
+#
+# Assumes on the VPS:
+#   - Project cloned at /opt/grvt-grid
+#   - Master key at /opt/grvt-grid/secrets/master.key (chmod 600, owner 10000:10000)
+#   - Data + logs dirs owned by uid 10000:10000
+#   - NPM running in docker, attached to an external network named below
+#
+# Adjust `NPM_NETWORK` (env or hardcode) if your NPM network has a
+# different name (typical: npm-network, npm_default, proxy, etc.).
+
+services:
+  bot:
+    # Drop the host port binding: NPM reaches the bot over the shared
+    # docker network by container name, so 3848 must NOT be on the host.
+    ports: !reset []
+
+    networks:
+      - npm
+      - default
+
+    volumes:
+      # Absolute paths so the bind-mounts resolve correctly regardless of
+      # where docker compose is invoked from (Portainer's stack dir,
+      # /opt/grvt-grid, etc.).
+      - /opt/grvt-grid/data:/app/data
+      - /opt/grvt-grid/logs/bot:/app/logs
+      - /opt/grvt-grid/secrets/master.key:/run/secrets/master.key:ro
+
+    environment:
+      MASTER_KEY_PATH: /run/secrets/master.key
+
+  # Telegram alerts sidecar — opt-in via `--profile full`. Configure
+  # TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env before enabling.
+  notifier:
+    volumes:
+      - /opt/grvt-grid/data:/shared-data:ro
+      - /opt/grvt-grid/logs/notifier:/app/logs
+
+networks:
+  npm:
+    external: true
+    # Change this to match your NPM network. Inspect with:
+    #   docker network ls | grep -i npm
+    name: ${NPM_NETWORK:-npm-network}
