@@ -4,13 +4,13 @@
   "private": true,
   "description": "Self-hostable multi-user grid trading bot for GRVT perpetual futures, with real-time dashboard and Telegram alerts.",
   "license": "AGPL-3.0-or-later",
-  "homepage": "https://grvtbot.com",
+  "homepage": "https://github.com/dignitasjota/gravityBot",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kmanus88/GRVTBot.git"
+    "url": "https://github.com/dignitasjota/gravityBot.git"
   },
   "bugs": {
-    "url": "https://github.com/kmanus88/GRVTBot/issues"
+    "url": "https://github.com/dignitasjota/gravityBot/issues"
   },
   "workspaces": [
     "packages/*"

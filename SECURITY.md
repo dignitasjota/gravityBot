@@ -1,7 +1,6 @@
 # Security Policy
 
-This document is for both users of the hosted instance at
-[grvtbot.com](https://grvtbot.com) and developers self-hosting their own copy.
+This document is for developers self-hosting their own copy of GRVT Grid.
 
 ## What this software does with your data
 
@@ -34,18 +33,14 @@ process user with file permissions `0600`.
 
 ## What the encryption does NOT protect against
 
-- **A compromised or malicious operator.** The operator of any hosted
-  instance has root access to the server, which means they have read
-  access to `master.key`, which means they can decrypt any stored
-  credential at any time. **This is a fundamental limit of
-  server-side multi-tenant hosting**, not a flaw in the implementation.
+- **A compromised or malicious operator.** Anyone with root access to
+  the host where the bot runs has read access to `master.key`, which
+  means they can decrypt any stored credential at any time. **This is
+  a fundamental limit of server-side multi-tenant hosting**, not a
+  flaw in the implementation. If you self-host on your own infra, you
+  *are* the operator.
 - **Government or legal compulsion** against the operator.
 - **Full root compromise** of the host.
-
-If you do not want any third party to have technical access to your GRVT
-credentials, **self-host your own instance**. The bot is AGPL-3.0
-licensed (see [LICENSE](LICENSE)). The setup is straightforward — see
-[docs/INSTALL.md](docs/INSTALL.md).
 
 ## Threat model summary
 
@@ -60,7 +55,7 @@ licensed (see [LICENSE](LICENSE)). The setup is straightforward — see
 | Clickjacking | `X-Frame-Options: SAMEORIGIN` + COOP | None |
 | Host-header / reset-link spoofing | `APP_BASE_URL` required, no Host fallback | None |
 | Cross-tenant data leak (alerts, WS) | Per-user filter in router + WS ownership gate | None known |
-| Operator reading user credentials | **NOT mitigated** by design | Mitigate by self-hosting |
+| Operator reading user credentials | **NOT mitigated** by design | Inherent to server-side hosting; you control the host |
 | Lost master key | None — backups are useless without it | Operator must back up `master.key` offline |
 
 ## Auth & session
@@ -90,13 +85,11 @@ licensed (see [LICENSE](LICENSE)). The setup is straightforward — see
 
 If you find a security issue, **do not open a public GitHub issue**.
 
-Email: `security@grvtbot.com` (or fall back to opening a *private*
-security advisory via GitHub's "Report a vulnerability" UI on the repo's
-Security tab).
+Open a *private* security advisory via GitHub's "Report a vulnerability"
+UI on the repo's Security tab, or email `dignitasjota@gmail.com`.
 
-We aim to acknowledge within 48h. If the issue is critical and affects
-the hosted instance, we will patch and re-deploy first, then publish a
-postmortem after users are safe.
+We aim to acknowledge within 48h. If the issue is critical, we will
+patch first, then publish a postmortem after users are safe.
 
 ## Out of scope
 

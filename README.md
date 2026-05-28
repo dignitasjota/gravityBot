@@ -4,27 +4,14 @@ Multi-user grid trading bot for the [GRVT](https://grvt.io) perpetual
 futures exchange. Self-hostable, AGPL-licensed, with a real-time web
 dashboard, Telegram alerts, and per-user encrypted API credentials.
 
-There is also a hosted instance at **[grvtbot.com](https://grvtbot.com)**
-— it runs the exact code in this repo. You don't have to host your own
-to use it.
-
 ## Use it
 
-**Option 1 — Use the hosted instance** at
-[grvtbot.com](https://grvtbot.com). Create an account, paste your GRVT
-API credentials (encrypted at rest with AES-256-GCM), configure a grid,
-and the bot trades on your sub-account 24/7. The operator does not
-touch your funds. See [SECURITY.md](SECURITY.md) for the exact threat
-model — short version: the operator technically can decrypt your
-credentials because the master key lives on the same server. If you
-want zero third-party access to your keys, use Option 2.
-
-**Option 2 — Self-host your own copy**. See
-[docs/INSTALL.md](docs/INSTALL.md) for the full setup. Quick version:
+Self-host your own copy. See [docs/INSTALL.md](docs/INSTALL.md) for the
+full setup. Quick version:
 
 ```bash
-git clone https://github.com/kmanus88/GRVTBot.git
-cd GRVTBot
+git clone https://github.com/dignitasjota/gravityBot.git
+cd gravityBot
 npm install
 npm run build
 
@@ -80,9 +67,7 @@ with a key on disk. See [SECURITY.md](SECURITY.md).
 
 ## Status
 
-In production. The hosted instance at
-[grvtbot.com](https://grvtbot.com) has been running real trades for
-months. Issues + PRs welcome.
+In production. Issues + PRs welcome.
 
 ## Contributing
 

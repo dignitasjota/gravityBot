@@ -26,6 +26,14 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.DASHBOARD_PORT || 3848;
 
+const GRVT_TRADING_URL = process.env.GRVT_TRADING_URL || 'https://trades.grvt.io/full/v1';
+const GRVT_SUB_ACCOUNT_ID = process.env.GRVT_TRADING_ACCOUNT_ID;
+if (!GRVT_SUB_ACCOUNT_ID) {
+  throw new Error(
+    'GRVT_TRADING_ACCOUNT_ID env var is required. Set it to your GRVT sub-account ID.'
+  );
+}
+
 // SECURITY (H-6 follow-up): the bot sits behind a reverse proxy (Caddy
 // in Docker on this VPS). Without `trust proxy`, every user's req.ip
 // resolves to the proxy's bridge IP and express-rate-limit shares ONE
@@ -340,8 +348,8 @@ app.get('/api/benchmark', async (req, res) => {
     let balance = 0;
     let equity = 0;
     try {
-      const summary = await authenticatedRequest(`${process.env.GRVT_TRADING_URL || 'https://trades.grvt.io/full/v1'}/account_summary`, {
-        sub_account_id: process.env.GRVT_TRADING_ACCOUNT_ID || '3931648923440974'
+      const summary = await authenticatedRequest(`${GRVT_TRADING_URL}/account_summary`, {
+        sub_account_id: GRVT_SUB_ACCOUNT_ID
       });
       balance = parseFloat(summary.spot_balances?.[0]?.balance || '0');
       const unrealized = parseFloat(summary.unrealized_pnl || '0');
@@ -663,7 +671,7 @@ app.post('/api/bots/:id/compound/execute', async (req, res) => {
     let gridProfit = (bot as any).grid_profit_usdt || 0;
     try {
       const { authenticatedRequest } = await import('../api/auth.js');
-      const summary = await authenticatedRequest('https://trades.grvt.io/full/v1/account_summary', { sub_account_id: '3931648923440974' });
+      const summary = await authenticatedRequest(`${GRVT_TRADING_URL}/account_summary`, { sub_account_id: GRVT_SUB_ACCOUNT_ID });
       const balance = parseFloat(summary.spot_balances?.[0]?.balance || '0');
       const investment = (bot as any).investment_usdt || 670;
       gridProfit = balance - investment; // Real profit = balance - what we put in
@@ -1220,7 +1228,7 @@ async function calculateRealPnL(botId: number): Promise<{
     let grvtBalance = 0;
     try {
       const { authenticatedRequest } = await import('../api/auth.js');
-      const summary = await authenticatedRequest('https://trades.grvt.io/full/v1/account_summary', {sub_account_id: '3931648923440974'});
+      const summary = await authenticatedRequest(`${GRVT_TRADING_URL}/account_summary`, {sub_account_id: GRVT_SUB_ACCOUNT_ID});
       grvtEquity = parseFloat(summary.total_equity) || 0;
       grvtBalance = parseFloat(summary.spot_balances?.[0]?.balance) || 0;
       const unrealizedPnl = parseFloat(summary.unrealized_pnl) || 0;
@@ -1249,8 +1257,8 @@ async function calculateRealPnL(botId: number): Promise<{
         )`);
         
         // Sync fills from API
-        const fillsResp = await authenticatedRequest('https://trades.grvt.io/full/v1/fill_history', {
-          sub_account_id: '3931648923440974', limit: 1000
+        const fillsResp = await authenticatedRequest(`${GRVT_TRADING_URL}/fill_history`, {
+          sub_account_id: GRVT_SUB_ACCOUNT_ID, limit: 1000
         });
         const apiFills = fillsResp.results || fillsResp;
         const ins = sdb.prepare('INSERT OR IGNORE INTO fills_archive (fill_id, event_time, is_buyer, price, size, fee) VALUES (?, ?, ?, ?, ?, ?)');
