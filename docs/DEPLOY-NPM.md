@@ -210,26 +210,54 @@ batched de fills, drawdown y proximidad a liquidación.
 
 Dos caminos:
 
-**A. Stack desde Git (recomendado para auto-update en cada push)**
+**A. Stack desde Git con `docker-compose.portainer.yml` (recomendado)**
+
+Portainer no copia el `.env` del repo al directorio del stack ni el
+overlay-merge funciona bien en todas las versiones. Por eso este
+repo incluye `docker-compose.portainer.yml`, un compose autocontenido
+que no usa `env_file:` y lee todas las variables por `${VAR}`, que es
+exactamente lo que Portainer inyecta desde su panel.
 
 1. Stacks → Add stack → Build method: *Repository*.
 2. Repository URL: `https://github.com/dignitasjota/gravityBot`.
 3. Reference: `refs/heads/main`.
-4. Compose path: `docker-compose.yml`.
-5. Additional paths: `docker-compose.npm.yml`.
-6. Environment variables: pega el contenido de `.env`, más
-   `NPM_NETWORK=<tu red>`.
+4. Compose path: `docker-compose.portainer.yml`.
+5. Additional paths: *(vacío)*.
+6. Environment variables: pega cada variable como par clave/valor.
+   Mínimo obligatorio:
+   - `GRVT_API_KEY`, `GRVT_API_SECRET`, `GRVT_TRADING_ACCOUNT_ID`,
+     `GRVT_TRADING_ADDRESS`
+   - `JWT_SECRET`, `DASHBOARD_API_KEY`
+   - `OWNER_EMAIL`, `OWNER_INITIAL_PASSWORD`, `ADMIN_EMAIL`
+   - `APP_BASE_URL`
+   - `NPM_NETWORK` (sólo si tu red NPM no se llama `npm-network`)
 7. Deploy.
 
-Portainer mantiene los bind mounts funcionando porque el overlay usa
-rutas absolutas (`/opt/grvt-grid/...`) en vez de relativas.
+Para que los bind mounts funcionen, antes de desplegar haz una vez
+por SSH al VPS lo del paso 3 (`/opt/grvt-grid/{data,logs,secrets}` con
+propietario 10000:10000, master.key generada). El stack no lo hace
+por ti.
 
-**B. Stack externo**
+**B. Stack desde Git con compose base + overlay (sólo si controlas
+docker compose ≥ 2.20 y el `.env` lo gestionas tú por SSH)**
 
-Despliega desde la CLI como en el paso 6, y en Portainer el stack
-aparecerá bajo *Stacks → External*. Puedes usar la UI para ver logs,
-reiniciar y recrear sin ceder a Portainer el control del ciclo de
-vida.
+1. Compose path: `docker-compose.yml`.
+2. Additional paths: `docker-compose.npm.yml`.
+3. Por SSH al VPS crea `/data/compose/<stack-id>/.env` con todas tus
+   variables (Portainer respeta los archivos no trackeados al hacer
+   `git pull`).
+4. Environment variables del stack: sólo `NPM_NETWORK` si aplica.
+
+Sólo úsalo si quieres mantener el overlay separado del base por
+razones de mantenibilidad. Para la mayoría de despliegues la opción
+A es más simple y robusta.
+
+**C. Stack externo (desplegado por CLI, gestionado luego por Portainer)**
+
+Despliega desde la CLI como en el paso 6 con `docker-compose.npm.yml`
+y un `.env` local. En Portainer el stack aparecerá bajo *Stacks →
+External*. Puedes usar la UI para logs, reinicio y recreate sin
+ceder a Portainer el control del ciclo de vida.
 
 ## 11. Backups
 

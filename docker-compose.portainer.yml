@@ -1,0 +1,137 @@
+# Compose autocontenido para despliegues con Portainer + Nginx Proxy
+# Manager.
+#
+# A diferencia de docker-compose.npm.yml (overlay que se mezcla con el
+# base), este archivo se usa SOLO. No depende de docker-compose.yml ni
+# requiere un .env en la raiz del repo: todas las variables se leen
+# por sustitucion ${VAR}, que es lo que Portainer inyecta cuando las
+# pegas en el panel de "Environment variables" del stack.
+#
+# Uso en Portainer (Stack from Git):
+#   - Compose path:        docker-compose.portainer.yml
+#   - Additional paths:    (vacio)
+#   - Environment variables: pega aqui todas las variables que abajo
+#                            aparecen como ${VAR}, mas NPM_NETWORK
+#
+# Uso desde la CLI (alternativo):
+#   docker compose -f docker-compose.portainer.yml --env-file .env up -d
+#
+# Asume en el VPS:
+#   - Repo clonado en /opt/grvt-grid (no estrictamente necesario, solo
+#     para los bind-mounts de data, logs y secrets si los hidratas a
+#     mano; Portainer puede dejar el repo en /data/compose/<id> y
+#     mantener los bind-mounts apuntando a /opt/grvt-grid igualmente).
+#   - secrets/master.key con chmod 600 y propietario 10000:10000.
+#   - data/ y logs/ con propietario 10000:10000.
+
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: packages/bot/Dockerfile
+    image: grvt-grid/bot:latest
+    container_name: grvt-grid-bot
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DASHBOARD_PORT: "3848"
+
+      # Master key montada como secreto bind-mount (ver volumes).
+      MASTER_KEY_PATH: /run/secrets/master.key
+
+      # GRVT (obligatorios).
+      GRVT_API_KEY: ${GRVT_API_KEY}
+      GRVT_API_SECRET: ${GRVT_API_SECRET}
+      GRVT_TRADING_ACCOUNT_ID: ${GRVT_TRADING_ACCOUNT_ID}
+      GRVT_TRADING_ADDRESS: ${GRVT_TRADING_ADDRESS}
+
+      # Seguridad (obligatorios).
+      JWT_SECRET: ${JWT_SECRET}
+      DASHBOARD_API_KEY: ${DASHBOARD_API_KEY}
+
+      # Bootstrap del owner.
+      OWNER_EMAIL: ${OWNER_EMAIL}
+      OWNER_INITIAL_PASSWORD: ${OWNER_INITIAL_PASSWORD:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+
+      # URL publica servida por NPM.
+      APP_BASE_URL: ${APP_BASE_URL}
+
+      # Modos de prueba (deja false en produccion).
+      MOCK_MODE: ${MOCK_MODE:-false}
+      DRY_RUN: ${DRY_RUN:-false}
+
+      # Endurecimiento opcional.
+      ENABLE_CSP: ${ENABLE_CSP:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+
+      # SMTP opcional para reset de password.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@example.com}
+
+    volumes:
+      - /opt/grvt-grid/data:/app/data
+      - /opt/grvt-grid/logs/bot:/app/logs
+      - /opt/grvt-grid/secrets/master.key:/run/secrets/master.key:ro
+
+    networks:
+      - npm
+      - default
+
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:3848/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Notifier opcional. Activa con `--profile full` desde CLI, o
+  # asegurate de que Portainer use el perfil "full" en el stack.
+  notifier:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: packages/notifier/Dockerfile
+    image: grvt-grid/notifier:latest
+    container_name: grvt-grid-notifier
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
+    depends_on:
+      bot:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      GRID_BOT_DB: /shared-data/grid_bot.db
+      NOTIFIER_STATE_DIR: /var/lib/grvt-grid-notifier
+      NOTIFIER_HEALTH_PORT: "3849"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    volumes:
+      - /opt/grvt-grid/data:/shared-data:ro
+      - /opt/grvt-grid/logs/notifier:/app/logs
+      - notifier-state:/var/lib/grvt-grid-notifier
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:3849/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - default
+
+volumes:
+  notifier-state:
+
+networks:
+  npm:
+    external: true
+    name: ${NPM_NETWORK:-npm-network}
