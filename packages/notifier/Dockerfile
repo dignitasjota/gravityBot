@@ -11,6 +11,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
+# Force native modules (sqlite3) to compile from source against this
+# image's glibc instead of downloading prebuilds that may require a
+# newer glibc than bookworm (2.36) ships.
+ENV npm_config_build_from_source=true
+
 COPY package.json package-lock.json ./
 COPY packages/notifier/package.json packages/notifier/
 COPY packages/notifier/tsconfig.json packages/notifier/

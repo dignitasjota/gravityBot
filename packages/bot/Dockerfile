@@ -19,6 +19,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
+# Force native modules (sqlite3, better-sqlite3) to compile from source
+# against this image's glibc instead of downloading prebuilds that may
+# require a newer glibc than bookworm (2.36) ships.
+ENV npm_config_build_from_source=true
+
 # Install only the bot package's deps. Copying package.json + lockfile first
 # means npm install gets cached on every rebuild that doesn't change deps.
 COPY package.json package-lock.json ./
