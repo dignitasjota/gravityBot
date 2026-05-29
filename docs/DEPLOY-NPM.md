@@ -1,41 +1,41 @@
-# Deploying behind Portainer + Nginx Proxy Manager
+# Despliegue detrás de Portainer + Nginx Proxy Manager
 
-This guide covers self-hosting GRVT Grid on a VPS that already runs
-**Portainer** and **Nginx Proxy Manager (NPM)**. The upstream stack
-uses Caddy; this guide ignores Caddy entirely and routes TLS through
-NPM instead.
+Esta guía cubre cómo auto-alojar GRVT Grid en un VPS que ya ejecuta
+**Portainer** y **Nginx Proxy Manager (NPM)**. El stack upstream usa
+Caddy; esta guía ignora Caddy por completo y enruta el TLS a través
+de NPM.
 
-## Target architecture
+## Arquitectura objetivo
 
 ```
-Internet --[443]--> Nginx Proxy Manager --(shared docker network)--> bot:3848
-                                                                      \-> notifier (optional)
+Internet --[443]--> Nginx Proxy Manager --(red docker compartida)--> bot:3848
+                                                                      \-> notifier (opcional)
 ```
 
-NPM terminates TLS and issues the Let's Encrypt cert. The bot container
-is never exposed on a host port — only NPM can reach it, over the
-shared docker network.
+NPM termina el TLS y emite el certificado Let's Encrypt. El contenedor
+del bot nunca se expone en un puerto del host — sólo NPM puede
+alcanzarlo, a través de la red docker compartida.
 
-## 1. Prerequisites
+## 1. Prerequisitos
 
-On the VPS:
-- Docker + docker compose plugin
-- Portainer (any recent version)
-- Nginx Proxy Manager already running in docker
-- A domain or subdomain whose A record points at the VPS IP
-  (example: `grvt.example.com`)
+En el VPS:
+- Docker + plugin docker compose
+- Portainer (cualquier versión reciente)
+- Nginx Proxy Manager ya corriendo en docker
+- Un dominio o subdominio cuyo registro A apunte a la IP del VPS
+  (ejemplo: `grvt.example.com`)
 
-Find the name of the docker network NPM is attached to:
+Averigua el nombre de la red docker a la que está conectado NPM:
 
 ```bash
 docker network ls
-docker inspect <npm-container-name> | grep -A2 Networks
+docker inspect <nombre-contenedor-npm> | grep -A2 Networks
 ```
 
-Typical names: `npm-network`, `npm_default`, `proxy`. Note the exact
-string — you will pass it as `NPM_NETWORK` to the compose stack.
+Nombres típicos: `npm-network`, `npm_default`, `proxy`. Anota la
+cadena exacta — la pasarás como `NPM_NETWORK` al stack de compose.
 
-## 2. Clone the repo
+## 2. Clonar el repo
 
 ```bash
 sudo mkdir -p /opt/grvt-grid
@@ -44,14 +44,16 @@ cd /opt/grvt-grid
 git clone https://github.com/dignitasjota/gravityBot.git .
 ```
 
-The deploy assumes the project lives at `/opt/grvt-grid`. The compose
-overlay (`docker-compose.npm.yml`) hard-codes that path in its bind
-mounts. If you put the repo somewhere else, edit those paths.
+El despliegue asume que el proyecto vive en `/opt/grvt-grid`. El
+overlay de compose (`docker-compose.npm.yml`) tiene esa ruta
+hardcodeada en sus bind mounts. Si pones el repo en otro sitio,
+edita esas rutas.
 
-## 3. Generate the master key
+## 3. Generar la master key
 
-The master key encrypts every user's GRVT API credentials in SQLite.
-Lose this file and the database becomes unreadable — back it up offline.
+La master key cifra las credenciales API de GRVT de cada usuario en
+SQLite. Si pierdes este archivo, la base de datos queda ilegible —
+haz copia de seguridad offline.
 
 ```bash
 mkdir -p secrets data logs/bot logs/notifier
@@ -60,39 +62,39 @@ chmod 600 secrets/master.key
 sudo chown -R 10000:10000 secrets data logs
 ```
 
-The container runs as UID 10000 (non-root `grvtbot` user). The bind
-mounts must be owned by that UID or the bot fails to start with
-`EACCES`.
+El contenedor corre como UID 10000 (usuario no-root `grvtbot`). Los
+bind mounts deben ser propiedad de ese UID o el bot falla al arrancar
+con `EACCES`.
 
-## 4. Create `.env`
+## 4. Crear el `.env`
 
 ```bash
 cp packages/bot/.env.example .env
 nano .env
 ```
 
-Required values:
+Valores obligatorios:
 
 ```env
-# GRVT API credentials (from your GRVT account UI)
+# Credenciales GRVT API (desde la UI de tu cuenta GRVT)
 GRVT_API_KEY=...
 GRVT_API_SECRET=0x...
 GRVT_TRADING_ACCOUNT_ID=...
 GRVT_TRADING_ADDRESS=0x...
 
-# Master key location inside the container
+# Ubicación de la master key dentro del contenedor
 MASTER_KEY_PATH=/run/secrets/master.key
 
-# Secrets (generate with the commands below)
+# Secretos (genéralos con los comandos de abajo)
 JWT_SECRET=
 DASHBOARD_API_KEY=
 
-# Owner bootstrap — remove OWNER_INITIAL_PASSWORD after first login
-OWNER_EMAIL=you@example.com
-OWNER_INITIAL_PASSWORD=ChangeMeOnFirstLogin
-ADMIN_EMAIL=you@example.com
+# Bootstrap del owner — borra OWNER_INITIAL_PASSWORD tras el primer login
+OWNER_EMAIL=tu@example.com
+OWNER_INITIAL_PASSWORD=CambiameEnPrimerLogin
+ADMIN_EMAIL=tu@example.com
 
-# Public URL served by NPM
+# URL pública servida por NPM
 APP_BASE_URL=https://grvt.example.com
 
 NODE_ENV=production
@@ -101,29 +103,29 @@ MOCK_MODE=false
 DRY_RUN=false
 ```
 
-Generate the secrets:
+Genera los secretos:
 
 ```bash
 echo "JWT_SECRET=$(head -c 48 /dev/urandom | base64)"
 echo "DASHBOARD_API_KEY=$(head -c 32 /dev/urandom | base64)"
 ```
 
-`GRVT_TRADING_ACCOUNT_ID` is **mandatory**. The dashboard server
-throws on startup if it is missing. There is no fallback to the
-upstream author's sub-account.
+`GRVT_TRADING_ACCOUNT_ID` es **obligatorio**. El servidor del
+dashboard lanza una excepción al arrancar si falta. No existe
+fallback a la sub-account del autor upstream.
 
-## 5. Configure the NPM network
+## 5. Configurar la red de NPM
 
-If your NPM network is not named `npm-network`, export it once:
+Si tu red NPM no se llama `npm-network`, exporta el nombre real:
 
 ```bash
-echo "NPM_NETWORK=npm_default" >> .env   # adjust to your real name
+echo "NPM_NETWORK=npm_default" >> .env   # ajusta al nombre real
 ```
 
-The overlay reads `${NPM_NETWORK:-npm-network}` for the external
-network declaration.
+El overlay lee `${NPM_NETWORK:-npm-network}` para la declaración de
+la red externa.
 
-## 6. First build and start
+## 6. Primer build y arranque
 
 ```bash
 cd /opt/grvt-grid
@@ -132,117 +134,118 @@ docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d
 docker compose -f docker-compose.yml -f docker-compose.npm.yml logs -f bot
 ```
 
-Healthy startup looks like:
+Un arranque correcto se ve así:
 
 ```
 Inicializando servicios...
-Owner user created: you@example.com (id=1)
+Owner user created: tu@example.com (id=1)
 REMOVE OWNER_INITIAL_PASSWORD from .env after first boot
 Grid Engine iniciado automáticamente
 Server: http://localhost:3848
 ```
 
-Confirm the container is `(healthy)`:
+Confirma que el contenedor está `(healthy)`:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.npm.yml ps
 ```
 
-## 7. Configure Nginx Proxy Manager
+## 7. Configurar Nginx Proxy Manager
 
-NPM UI → **Hosts → Proxy Hosts → Add Proxy Host**.
+UI de NPM → **Hosts → Proxy Hosts → Add Proxy Host**.
 
-**Details tab**
+**Pestaña Details**
 - Domain Names: `grvt.example.com`
 - Scheme: `http`
 - Forward Hostname / IP: `grvt-grid-bot`
-  (the `container_name` defined in the base compose)
+  (el `container_name` definido en el compose base)
 - Forward Port: `3848`
-- Enable: *Cache Assets*, *Block Common Exploits*, *Websockets Support*
+- Activa: *Cache Assets*, *Block Common Exploits*, *Websockets Support*
 
-The Websockets toggle is essential. The dashboard receives all
-real-time updates (fills, equity curve, alerts) over WebSocket. Without
-it the UI loads but never refreshes.
+El toggle de Websockets es **imprescindible**. El dashboard recibe
+todas las actualizaciones en tiempo real (fills, equity curve,
+alertas) por WebSocket. Sin él la UI carga pero nunca se refresca.
 
-**SSL tab**
+**Pestaña SSL**
 - SSL Certificate: *Request a new SSL Certificate* (Let's Encrypt)
 - Force SSL, HTTP/2, HSTS Enabled
 
-Save. Visit `https://grvt.example.com/dashboard/` and log in with
+Guarda. Visita `https://grvt.example.com/dashboard/` y entra con
 `OWNER_EMAIL` + `OWNER_INITIAL_PASSWORD`.
 
-## 8. Lock down after first login
+## 8. Asegurar tras el primer login
 
-1. Change your password in the UI.
-2. Remove `OWNER_INITIAL_PASSWORD` from `.env`.
-3. Recreate the container:
+1. Cambia tu contraseña en la UI.
+2. Borra `OWNER_INITIAL_PASSWORD` de `.env`.
+3. Recrea el contenedor:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d --force-recreate bot
 ```
 
-The owner-bootstrap routine is idempotent: it skips silently when a
-user already exists, so the password env is only ever read on the very
-first start.
+La rutina de bootstrap del owner es idempotente: hace skip silencioso
+si ya existe algún usuario, así que la env del password sólo se lee
+en el primer arranque.
 
-## 9. Optional — Telegram alerts
+## 9. Opcional — Alertas Telegram
 
-To enable the notifier sidecar, add to `.env`:
+Para habilitar el sidecar del notifier, añade al `.env`:
 
 ```env
 TELEGRAM_BOT_TOKEN=...
 TELEGRAM_CHAT_ID=...
 ```
 
-Start the full profile:
+Arranca con el perfil `full`:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.npm.yml \
   --profile full up -d
 ```
 
-The notifier reads the bot's SQLite database read-only and pushes
-batched fill, drawdown, and liquidation-proximity alerts.
+El notifier lee la SQLite del bot en read-only y empuja alertas
+batched de fills, drawdown y proximidad a liquidación.
 
-## 10. Using Portainer instead of the CLI
+## 10. Usar Portainer en vez de la CLI
 
-Two paths:
+Dos caminos:
 
-**A. Stack from Git (recommended for auto-update on push)**
+**A. Stack desde Git (recomendado para auto-update en cada push)**
 
 1. Stacks → Add stack → Build method: *Repository*.
 2. Repository URL: `https://github.com/dignitasjota/gravityBot`.
 3. Reference: `refs/heads/main`.
 4. Compose path: `docker-compose.yml`.
 5. Additional paths: `docker-compose.npm.yml`.
-6. Environment variables: paste the contents of `.env`, plus
-   `NPM_NETWORK=<your network>`.
+6. Environment variables: pega el contenido de `.env`, más
+   `NPM_NETWORK=<tu red>`.
 7. Deploy.
 
-Portainer keeps the bind mounts working because the overlay uses
-absolute paths (`/opt/grvt-grid/...`) instead of relative ones.
+Portainer mantiene los bind mounts funcionando porque el overlay usa
+rutas absolutas (`/opt/grvt-grid/...`) en vez de relativas.
 
-**B. External stack**
+**B. Stack externo**
 
-Deploy from the CLI as in step 6, then in Portainer the stack appears
-under *Stacks → External*. You can use the UI for logs, restart, and
-recreate without giving Portainer ownership of the lifecycle.
+Despliega desde la CLI como en el paso 6, y en Portainer el stack
+aparecerá bajo *Stacks → External*. Puedes usar la UI para ver logs,
+reiniciar y recrear sin ceder a Portainer el control del ciclo de
+vida.
 
 ## 11. Backups
 
-Two artefacts are critical:
+Dos artefactos son críticos:
 
-- **`/opt/grvt-grid/secrets/master.key`** — back this up offline
-  (encrypted USB, password manager). The database is useless without
-  it.
-- **`/opt/grvt-grid/data/grid_bot.db`** — use the SQLite-safe backup
-  script in `scripts/backup.sh`. Schedule it via cron:
+- **`/opt/grvt-grid/secrets/master.key`** — copia de seguridad
+  offline (USB cifrado, gestor de contraseñas). La base de datos es
+  inservible sin él.
+- **`/opt/grvt-grid/data/grid_bot.db`** — usa el script SQLite-safe
+  en `scripts/backup.sh`. Prográmalo con cron:
 
 ```cron
 0 3 * * * /opt/grvt-grid/scripts/backup.sh >> /var/log/grvt-backup.log 2>&1
 ```
 
-## 12. Upgrading
+## 12. Actualizar a una nueva versión
 
 ```bash
 cd /opt/grvt-grid
@@ -251,18 +254,18 @@ docker compose -f docker-compose.yml -f docker-compose.npm.yml build --pull
 docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d
 ```
 
-SIGTERM is forwarded by tini to the node process; the bot cancels its
-monitoring loop gracefully and leaves all open GRVT orders untouched
-during the restart.
+tini reenvía SIGTERM al proceso node; el bot cancela su loop de
+monitorización de forma graceful y deja intactas todas las órdenes
+abiertas en GRVT durante el reinicio.
 
 ## Troubleshooting
 
-| Symptom | Likely cause |
+| Síntoma | Causa probable |
 |---|---|
-| `Master key file not found at /etc/grvt-grid/master.key` | `MASTER_KEY_PATH` env not set, or bind mount missing |
-| `EACCES` on `/app/data` at startup | `data/` not owned by uid 10000 |
-| `GRVT_TRADING_ACCOUNT_ID env var is required` | Missing env value; this fork removed the upstream fallback |
-| Dashboard loads but never updates | NPM proxy host missing the Websockets toggle |
-| Password reset link points at `http://localhost` | `APP_BASE_URL` not set |
-| NPM cannot reach `grvt-grid-bot` | Bot not on NPM network — check `NPM_NETWORK` matches `docker network ls` |
-| Container restarts on healthcheck | Check `docker logs grvt-grid-bot` — usually a missing env var or auth error against GRVT |
+| `Master key file not found at /etc/grvt-grid/master.key` | Falta la env `MASTER_KEY_PATH` o el bind mount |
+| `EACCES` sobre `/app/data` al arrancar | El directorio `data/` no pertenece al uid 10000 |
+| `GRVT_TRADING_ACCOUNT_ID env var is required` | Falta el valor; este fork eliminó el fallback upstream |
+| El dashboard carga pero no se refresca | Falta el toggle Websockets en el proxy host de NPM |
+| El enlace de password reset apunta a `http://localhost` | `APP_BASE_URL` no está configurado |
+| NPM no puede alcanzar `grvt-grid-bot` | El bot no está en la red de NPM — revisa que `NPM_NETWORK` coincida con `docker network ls` |
+| El contenedor se reinicia por el healthcheck | Mira `docker logs grvt-grid-bot` — habitualmente falta una env o falla la auth contra GRVT |
