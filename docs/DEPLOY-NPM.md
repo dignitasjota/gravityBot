@@ -44,10 +44,12 @@ cd /opt/grvt-grid
 git clone https://github.com/dignitasjota/gravityBot.git .
 ```
 
-El despliegue asume que el proyecto vive en `/opt/grvt-grid`. El
-overlay de compose (`docker-compose.npm.yml`) tiene esa ruta
-hardcodeada en sus bind mounts. Si pones el repo en otro sitio,
-edita esas rutas.
+El despliegue asume por defecto que los datos del bot (DB, logs,
+master key) viven bajo `/opt/grvt-grid/`. Si los tienes en otro sitio
+(p.ej. `/opt/webs/gravity-bot/`), define la variable `GRVT_DATA_DIR`
+en el stack apuntando a esa ruta — los bind-mounts se resuelven
+relativos a ella. No es necesario que el repo esté ahí; sólo los
+subdirectorios `data/`, `logs/{bot,notifier}/` y `secrets/`.
 
 ## 3. Generar la master key
 

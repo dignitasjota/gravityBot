@@ -17,10 +17,9 @@
 #   docker compose -f docker-compose.portainer.yml --env-file .env up -d
 #
 # Asume en el VPS:
-#   - Repo clonado en /opt/grvt-grid (no estrictamente necesario, solo
-#     para los bind-mounts de data, logs y secrets si los hidratas a
-#     mano; Portainer puede dejar el repo en /data/compose/<id> y
-#     mantener los bind-mounts apuntando a /opt/grvt-grid igualmente).
+#   - GRVT_DATA_DIR apunta al directorio donde viven {data,logs,secrets}.
+#     Si no se define, por defecto es /opt/grvt-grid. Puedes apuntar a
+#     cualquier ruta del host: /opt/webs/gravity-bot, /srv/grvt, etc.
 #   - secrets/master.key con chmod 600 y propietario 10000:10000.
 #   - data/ y logs/ con propietario 10000:10000.
 
@@ -77,9 +76,9 @@ services:
       SMTP_FROM: ${SMTP_FROM:-noreply@example.com}
 
     volumes:
-      - /opt/grvt-grid/data:/app/data
-      - /opt/grvt-grid/logs/bot:/app/logs
-      - /opt/grvt-grid/secrets/master.key:/run/secrets/master.key:ro
+      - ${GRVT_DATA_DIR:-/opt/grvt-grid}/data:/app/data
+      - ${GRVT_DATA_DIR:-/opt/grvt-grid}/logs/bot:/app/logs
+      - ${GRVT_DATA_DIR:-/opt/grvt-grid}/secrets/master.key:/run/secrets/master.key:ro
 
     networks:
       - npm
@@ -116,8 +115,8 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
     volumes:
-      - /opt/grvt-grid/data:/shared-data:ro
-      - /opt/grvt-grid/logs/notifier:/app/logs
+      - ${GRVT_DATA_DIR:-/opt/grvt-grid}/data:/shared-data:ro
+      - ${GRVT_DATA_DIR:-/opt/grvt-grid}/logs/notifier:/app/logs
       - notifier-state:/var/lib/grvt-grid-notifier
     healthcheck:
       test: ["CMD", "curl", "-fs", "http://127.0.0.1:3849/"]

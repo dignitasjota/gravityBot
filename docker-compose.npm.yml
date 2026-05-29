@@ -30,10 +30,11 @@ services:
     volumes:
       # Absolute paths so the bind-mounts resolve correctly regardless of
       # where docker compose is invoked from (Portainer's stack dir,
-      # /opt/grvt-grid, etc.).
-      - /opt/grvt-grid/data:/app/data
-      - /opt/grvt-grid/logs/bot:/app/logs
-      - /opt/grvt-grid/secrets/master.key:/run/secrets/master.key:ro
+      # local repo, etc.). Override GRVT_DATA_DIR to point at any host
+      # path that holds {data, logs, secrets}.
+      - ${GRVT_DATA_DIR:-/opt/grvt-grid}/data:/app/data
+      - ${GRVT_DATA_DIR:-/opt/grvt-grid}/logs/bot:/app/logs
+      - ${GRVT_DATA_DIR:-/opt/grvt-grid}/secrets/master.key:/run/secrets/master.key:ro
 
     environment:
       MASTER_KEY_PATH: /run/secrets/master.key
@@ -42,8 +43,8 @@ services:
   # TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env before enabling.
   notifier:
     volumes:
-      - /opt/grvt-grid/data:/shared-data:ro
-      - /opt/grvt-grid/logs/notifier:/app/logs
+      - ${GRVT_DATA_DIR:-/opt/grvt-grid}/data:/shared-data:ro
+      - ${GRVT_DATA_DIR:-/opt/grvt-grid}/logs/notifier:/app/logs
 
 networks:
   npm:
